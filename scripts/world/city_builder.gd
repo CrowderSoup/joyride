@@ -3,7 +3,7 @@ extends RefCounted
 ## Builds the drivable city (ground, lots, parks, roads, buildings) from the map data.
 ## Street furniture lives in Scenery, the mountains in Terrain.
 
-# Everything is flat; these tiny offsets just keep overlapping layers from z-fighting.
+# Heights above the ground (see Ground) that keep overlapping layers from z-fighting.
 const PARKING_Y := 0.012
 const GREEN_Y := 0.018
 const SIDEWALK_Y := 0.025
@@ -13,7 +13,6 @@ const ROAD_HEIGHT := {
 }
 const MARKING_LIFT := 0.012
 
-const GROUND_COLOR := Color(0.34, 0.4, 0.25)
 const GREEN_COLOR := Color(0.3, 0.5, 0.2)
 const PARKING_COLOR := Color(0.25, 0.25, 0.26)
 const AEROWAY_COLOR := Color(0.19, 0.19, 0.2)
@@ -45,15 +44,28 @@ const SIDEWALK_WIDTH := 2.5
 const INTERSECTION_TRIM := 10.0  # keep lane markings out of intersections
 const DASH := 3.0
 const DASH_GAP := 6.0
+## Paint laid over the ground is cut into pieces about this long so it follows the hills.
+const PIECE := 6.0
 
 
 static func build(map: Dictionary, intersections: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	root.name = "City"
-	root.add_child(_build_ground())
 	root.add_child(_build_surface(map, intersections))
 	root.add_child(_build_buildings(map.buildings, map.get("props", [])))
 	return root
+
+
+## Ponds can't run downhill: level the ground under each water area. Call before
+## anything is built on the ground.
+static func level_water(map: Dictionary) -> void:
+	for area in map.areas:
+		if area.kind != "water":
+			continue
+		var r := Rect2(area.pts[0][0], area.pts[0][1], 0, 0)
+		for p in area.pts:
+			r = r.expand(Vector2(p[0], p[1]))
+		Ground.flatten(r.grow(6.0), 20.0)
 
 
 ## Road vertices shared by more than one way. Keyed by position rounded to 10cm.
@@ -84,26 +96,7 @@ static func _vertex_color_material() -> StandardMaterial3D:
 	return mat
 
 
-static func _build_ground() -> StaticBody3D:
-	var body := StaticBody3D.new()
-	body.name = "Ground"
-	var shape := CollisionShape3D.new()
-	shape.shape = WorldBoundaryShape3D.new()
-	body.add_child(shape)
-
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(60000, 60000)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = GROUND_COLOR
-	mat.roughness = 1.0
-	plane.material = mat
-	var mesh := MeshInstance3D.new()
-	mesh.mesh = plane
-	body.add_child(mesh)
-	return body
-
-
-## Everything painted flat on the ground: lots, parks, sidewalks, roads, and markings.
+## Everything painted on the ground: lots, parks, sidewalks, roads, and markings.
 static func _build_surface(map: Dictionary, intersections: Dictionary) -> StaticBody3D:
 	var tiles := MeshTiles.new()
 
@@ -125,7 +118,7 @@ static func _build_surface(map: Dictionary, intersections: Dictionary) -> Static
 		var buf := tiles.at(_v3(poly[0], y))
 		var tris := Geometry2D.triangulate_polygon(poly)
 		for t in range(0, tris.size(), 3):
-			buf.add_tri(_v3(poly[tris[t]], y), _v3(poly[tris[t + 1]], y), _v3(poly[tris[t + 2]], y), Vector3.UP, col)
+			_add_draped_tri(buf, poly[tris[t]], poly[tris[t + 1]], poly[tris[t + 2]], y, col)
 
 	for road in map.roads:
 		if _has_sidewalk(road.kind):
@@ -144,6 +137,38 @@ static func _has_sidewalk(kind: String) -> bool:
 
 static func _v3(p: Vector2, y: float) -> Vector3:
 	return Vector3(p.x, y, p.y)
+
+
+## Splits a triangle until it's small enough to follow the ground, then drapes it at lift.
+static func _add_draped_tri(buf: MeshBuffer, a: Vector2, b: Vector2, c: Vector2, lift: float, col: Color) -> void:
+	var ab := a.distance_squared_to(b)
+	var bc := b.distance_squared_to(c)
+	var ca := c.distance_squared_to(a)
+	var longest := maxf(ab, maxf(bc, ca))
+	if longest > PIECE * PIECE * 2.25:
+		# Halve the longest edge.
+		if longest == ab:
+			var m := (a + b) * 0.5
+			_add_draped_tri(buf, a, m, c, lift, col)
+			_add_draped_tri(buf, m, b, c, lift, col)
+		elif longest == bc:
+			var m := (b + c) * 0.5
+			_add_draped_tri(buf, a, b, m, lift, col)
+			_add_draped_tri(buf, a, m, c, lift, col)
+		else:
+			var m := (c + a) * 0.5
+			_add_draped_tri(buf, a, b, m, lift, col)
+			_add_draped_tri(buf, m, b, c, lift, col)
+		return
+	var pa := Ground.at(a, lift)
+	var pb := Ground.at(b, lift)
+	var pc := Ground.at(c, lift)
+	buf.add_tri(pa, pb, pc, _up_normal(pa, pb, pc), col)
+
+
+static func _up_normal(a: Vector3, b: Vector3, c: Vector3) -> Vector3:
+	var n := (b - a).cross(c - a).normalized()
+	return -n if n.y < 0.0 else n
 
 
 static func _add_polyline(tiles: MeshTiles, pts: Array, y: float, half_width: float, col: Color) -> void:
@@ -213,27 +238,46 @@ static func _add_crosswalk(buf: MeshBuffer, start: Vector3, dir: Vector3, side: 
 		off += 1.2
 
 
+## a and b are on the ground; their y is how far above it to paint. Long or wide ribbons
+## are cut into a grid of pieces so they follow the ground.
 static func _add_ribbon(buf: MeshBuffer, a: Vector3, b: Vector3, half_width: float, col: Color) -> void:
 	var dir := b - a
-	if dir.length_squared() < 0.0001:
+	dir.y = 0.0
+	var length := dir.length()
+	if length < 0.01:
 		return
-	dir = dir.normalized()
-	var side := Vector3(-dir.z, 0, dir.x) * half_width
-	buf.add_quad(a - side, a + side, b + side, b - side, Vector3.UP, col)
+	dir /= length
+	var side := Vector3(-dir.z, 0, dir.x)
+	var along := ceili(length / PIECE)
+	var across := ceili(half_width / PIECE)
+	var lift := a.y
+	for i in along:
+		var s0 := length * i / along
+		var s1 := length * (i + 1) / along
+		for j in across:
+			var w0 := lerpf(-half_width, half_width, float(j) / across)
+			var w1 := lerpf(-half_width, half_width, float(j + 1) / across)
+			var p00 := Ground.at(_xz(a + dir * s0 + side * w0), lift)
+			var p01 := Ground.at(_xz(a + dir * s0 + side * w1), lift)
+			var p11 := Ground.at(_xz(a + dir * s1 + side * w1), lift)
+			var p10 := Ground.at(_xz(a + dir * s1 + side * w0), lift)
+			buf.add_quad(p00, p01, p11, p10, _up_normal(p00, p01, p11), col)
 
 
 static func _add_disc(buf: MeshBuffer, center: Vector3, radius: float, col: Color) -> void:
+	var c := _xz(center)
 	for i in DISC_SEGMENTS:
 		var a0 := TAU * i / DISC_SEGMENTS
 		var a1 := TAU * (i + 1) / DISC_SEGMENTS
-		buf.add_tri(
-			center,
-			center + Vector3(cos(a0), 0, sin(a0)) * radius,
-			center + Vector3(cos(a1), 0, sin(a1)) * radius,
-			Vector3.UP, col)
+		_add_draped_tri(buf, c, c + Vector2(cos(a0), sin(a0)) * radius, c + Vector2(cos(a1), sin(a1)) * radius, center.y, col)
+
+
+static func _xz(p: Vector3) -> Vector2:
+	return Vector2(p.x, p.z)
 
 
 ## props: plain colored boxes (awnings, loading doors) that ride along in the building tiles.
+## Their y is height above the ground.
 static func _build_buildings(buildings: Array, props: Array) -> StaticBody3D:
 	var tiles := MeshTiles.new()
 	for idx in buildings.size():
@@ -242,7 +286,7 @@ static func _build_buildings(buildings: Array, props: Array) -> StaticBody3D:
 		var p: Array = buildings[idx].pts[0]
 		_add_building(tiles.at(Vector3(p[0], 0, p[1])), buildings[idx], idx)
 	for prop in props:
-		var c := Vector3(prop.c[0], prop.c[1], prop.c[2])
+		var c := Vector3(prop.c[0], prop.c[1], prop.c[2]) + Vector3.UP * Ground.height(prop.c[0], prop.c[2])
 		_add_box(tiles.at(c), c, Vector3(prop.s[0], prop.s[1], prop.s[2]), Color(prop.col[0], prop.col[1], prop.col[2]), Vector2.ZERO)
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/building.gdshader")
@@ -261,6 +305,15 @@ static func _add_building(buf: MeshBuffer, b: Dictionary, idx: int) -> void:
 	var n := poly.size()
 	if n < 3:
 		return
+	# On a hill the building stands at the ground under its middle (so stacked tower tiers
+	# agree), and its walls run down past the lowest corner like a foundation.
+	var base := Ground.height(_centroid(poly).x, _centroid(poly).y)
+	var foot := base
+	for i in n:
+		var mid := (poly[i] + poly[(i + 1) % n]) * 0.5
+		foot = minf(foot, minf(Ground.height(poly[i].x, poly[i].y), Ground.height(mid.x, mid.y)))
+	var bottom := base + y0 if y0 > 0.0 else foot - 0.3
+	var top := base + h
 
 	# Signed area tells us winding, so we know which side of each wall is "outside".
 	var area2 := 0.0
@@ -292,22 +345,22 @@ static func _add_building(buf: MeshBuffer, b: Dictionary, idx: int) -> void:
 			continue
 		var normal := Vector3(d.y, 0, -d.x).normalized() * outward_sign
 		buf.add_quad(
-			Vector3(p0.x, y0, p0.y), Vector3(p1.x, y0, p1.y),
-			Vector3(p1.x, h, p1.y), Vector3(p0.x, h, p0.y),
+			Vector3(p0.x, bottom, p0.y), Vector3(p1.x, bottom, p1.y),
+			Vector3(p1.x, top, p1.y), Vector3(p0.x, top, p0.y),
 			normal, wall_col,
-			Vector2(run, y0), Vector2(run + seg, y0), Vector2(run + seg, h), Vector2(run, h), wall_flags)
+			Vector2(run, bottom - base), Vector2(run + seg, bottom - base), Vector2(run + seg, h), Vector2(run, h), wall_flags)
 		run += seg
 
 	var roof_col: Color = ROOF_COLORS[idx % ROOF_COLORS.size()]
 	if roof == "gable" and n == 4:
-		_add_gable_roof(buf, poly, h, roof_col, wall_col, roof_flags)
+		_add_gable_roof(buf, poly, top, roof_col, wall_col, roof_flags)
 		return
 	if is_house:
-		_add_hip_roof(buf, poly, h, area, roof_col, roof_flags)
+		_add_hip_roof(buf, poly, top, area, roof_col, roof_flags)
 		return
 
 	# Flat roof sunk below a parapet: inward-facing walls make the lip.
-	var roof_y := h - 0.45
+	var roof_y := top - 0.45
 	for i in n:
 		var p0 := poly[i]
 		var p1 := poly[(i + 1) % n]
@@ -317,7 +370,7 @@ static func _add_building(buf: MeshBuffer, b: Dictionary, idx: int) -> void:
 		var inward := -Vector3(d.y, 0, -d.x).normalized() * outward_sign
 		buf.add_quad(
 			Vector3(p0.x, roof_y, p0.y), Vector3(p1.x, roof_y, p1.y),
-			Vector3(p1.x, h, p1.y), Vector3(p0.x, h, p0.y),
+			Vector3(p1.x, top, p1.y), Vector3(p0.x, top, p0.y),
 			inward, wall_col.darkened(0.2), Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, roof_flags)
 	var tris := Geometry2D.triangulate_polygon(poly)
 	for t in range(0, tris.size(), 3):

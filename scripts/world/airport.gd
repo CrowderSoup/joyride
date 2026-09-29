@@ -22,7 +22,7 @@ const HANGAR_ROOF_H := 13.5
 const DOOR_HALF_WIDTH := 17.0
 const DOOR_H := 10.0
 
-const MARKING_Y := 0.03
+const MARKING_Y := 0.03  # above the pad; the area paint underneath is at 0.012
 const WHITE := Color(0.92, 0.92, 0.9)
 const YELLOW := Color(0.95, 0.75, 0.2)
 
@@ -39,9 +39,13 @@ const SPOTS := {
 var xform: Transform3D
 
 
+## Levels the airfield, so make it before anything else is built on the ground.
 func _init() -> void:
 	# Hangar's back wall ~100 m west of I-15, access road on North Temple's line.
 	var origin := Vector3(CityGen.I15_X - 100.0 - HANGAR_DEPTH, 0, CityGen.street_z(-1) - ROAD_Z)
+	var pad := Rect2(RUNWAY_X - RUNWAY_WIDTH * 0.5 - 25.0, -RUNWAY_HALF_LEN - 25.0,
+		HANGAR_DEPTH + 45.0 - (RUNWAY_X - RUNWAY_WIDTH * 0.5), RUNWAY_HALF_LEN * 2.0 + 50.0)
+	origin.y = Ground.flatten(Rect2(pad.position + Vector2(origin.x, origin.z), pad.size), 120.0)
 	xform = Transform3D(Basis.IDENTITY, origin)
 
 

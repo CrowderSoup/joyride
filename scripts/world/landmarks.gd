@@ -52,13 +52,26 @@ static func add_to_map(map: Dictionary) -> void:
 		map.buildings.append({"pts": pts, "h": 20.0, "custom": true})
 
 
+## Level the ground under each landmark (the Capitol sits on a real hill). Call before
+## anything else is built on the ground.
+static func level_ground() -> void:
+	Ground.flatten(CityGen.block_rect(0, 0), 25.0)
+	Ground.flatten(CityGen.capitol_rect(), 40.0)
+	Ground.flatten(CityGen.block_rect(-2, 1), 20.0)
+	Ground.flatten(CityGen.block_rect(2, 5), 20.0)
+
+
 static func build() -> Node3D:
 	var root := Node3D.new()
 	root.name = "Landmarks"
-	root.add_child(_temple_square())
-	root.add_child(_capitol())
-	root.add_child(_arena())
-	root.add_child(_civic())
+	for item in [
+		[_temple_square(), temple_rect()], [_capitol(), capitol_rect()],
+		[_arena(), arena_rect()], [_civic(), civic_rect()],
+	]:
+		var body: Node3D = item[0]
+		var at: Vector2 = item[1].get_center()
+		body.position.y = Ground.height(at.x, at.y)
+		root.add_child(body)
 	return root
 
 

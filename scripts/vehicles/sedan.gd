@@ -23,6 +23,7 @@ static func make() -> GroundVehicle:
 	v.pitch_amount = 0.004
 	v.exit_offset = Vector3(-1.6, 0, -0.2)
 	Parts.collision_box(v, Vector3(1.84, 1.3, 4.9), Vector3(0, 0.7, 0))
+	v.add_engine(EngineSound.SEDAN)
 
 	v.body = Node3D.new()
 	v.visual.add_child(v.body)

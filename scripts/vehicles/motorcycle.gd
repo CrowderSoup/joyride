@@ -30,6 +30,7 @@ static func make() -> GroundVehicle:
 	v.enter_radius = 2.2
 	v.exit_offset = Vector3(-1.0, 0, 0)
 	Parts.collision_box(v, Vector3(0.7, 1.3, 2.1), Vector3(0, 0.65, 0))
+	v.add_engine(EngineSound.BIKE)
 
 	var chassis := MeshInstance3D.new()
 	chassis.mesh = _chassis_mesh()

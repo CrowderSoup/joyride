@@ -1,7 +1,7 @@
 class_name Walker
 extends CharacterBody3D
-## You, on foot. Walk up to a vehicle and hop in. Same tank-style controls as driving:
-## W/S forward/back, A/D turn, so the chase camera just works. Hold Shift to run.
+## You, on foot. Walk up to a vehicle and hop in. Moves relative to the camera: push a
+## direction and he turns and heads that way. Hold Shift to run.
 ## The body is built from smooth primitives with jointed limbs (hips, knees, shoulders,
 ## elbows) so walking and running read as different gaits.
 
@@ -11,7 +11,7 @@ const HIP_Y := 0.95
 var display_name := "On foot"
 var walk_speed := 4.5
 var run_speed := 9.0
-var turn_rate := 3.2
+var turn_rate := 12.0  # rad/s, turning to face where you're heading
 var jump_speed := 7.0
 var camera_distance := 6.5
 var camera_height := 2.8
@@ -22,6 +22,7 @@ var shape := CapsuleShape3D.new()
 var _speed := 0.0
 var _phase := 0.0
 var _run := 0.0     # 0 = walking gait, 1 = running gait (blended)
+var _step_player: AudioStreamPlayer3D
 var _hips: Node3D   # bobs; carries the legs and torso
 var _torso: Node3D  # leans into a run
 var _legs: Array[Node3D] = []    # hip joints
@@ -42,6 +43,9 @@ func _init() -> void:
 	add_child(col)
 	add_child(visual)
 	_build_body()
+	floor_constant_speed = true
+	_step_player = Sfx.player(self, -12.0)
+	_step_player.stream = Sfx.step()
 
 
 func get_speed() -> float:
@@ -58,20 +62,24 @@ func stop() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var move := 0.0
-	var turn := 0.0
+	var input := Vector2.ZERO  # x = right, y = forward, relative to the camera
 	var running := false
 	if active:
-		move = Input.get_axis("move_back", "move_forward")
-		turn = Input.get_axis("steer_right", "steer_left")
-		running = Input.is_action_pressed("sprint") and move > 0.0
+		input = Input.get_vector("steer_left", "steer_right", "move_back", "move_forward")
+		running = Input.is_action_pressed("sprint")
 		if is_on_floor() and Input.is_action_just_pressed("jump"):
 			velocity.y = jump_speed
 
-	rotate_y(turn * turn_rate * delta)
-	var target := move * (run_speed if running else walk_speed)
-	if move < 0.0:
-		target *= 0.6  # backpedaling is slower
+	var target := 0.0
+	var cam := get_viewport().get_camera_3d()
+	if input.length() > 0.05 and cam:
+		var cam_fwd := -cam.global_basis.z
+		var cam_right := cam.global_basis.x
+		cam_fwd.y = 0.0
+		cam_right.y = 0.0
+		var dir := cam_right.normalized() * input.x + cam_fwd.normalized() * input.y
+		rotation.y = rotate_toward(rotation.y, atan2(-dir.x, -dir.z), turn_rate * delta)
+		target = minf(input.length(), 1.0) * (run_speed if running else walk_speed)
 	_speed = move_toward(_speed, target, 20.0 * delta)
 	var fwd := -global_basis.z
 	velocity.x = fwd.x * _speed
@@ -88,7 +96,12 @@ func _animate(delta: float) -> void:
 	_run = move_toward(_run, clampf((pace - walk_speed) / (run_speed - walk_speed), 0.0, 1.0), 3.0 * delta)
 	# One full cycle = two steps. Longer strides when running, so cadence doesn't go silly.
 	var stride := lerpf(2.4, 3.6, _run)
+	var prev_step := floori(_phase / PI)
 	_phase = fmod(_phase + TAU * _speed / stride * delta, TAU)
+	if floori(_phase / PI) != prev_step and pace > 0.5 and is_on_floor():
+		_step_player.volume_db = lerpf(-14.0, -7.0, _run)
+		_step_player.pitch_scale = randf_range(0.85, 1.15)
+		_step_player.play()
 
 	var leg_amp := lerpf(0.45, 0.85, _run) * moving
 	var knee_amp := lerpf(0.6, 1.5, _run) * moving

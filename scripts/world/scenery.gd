@@ -77,7 +77,7 @@ static func _tree_items(trees: Array) -> Array:
 	for p in trees:
 		var s := rng.randf_range(0.75, 1.35)
 		var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.9, 1.2), s))
-		items.append([Transform3D(basis, Vector3(p[0], 0, p[1])), TREE_TINTS[rng.randi() % TREE_TINTS.size()]])
+		items.append([Transform3D(basis, Ground.at(Vector2(p[0], p[1]))), TREE_TINTS[rng.randi() % TREE_TINTS.size()]])
 	return items
 
 
@@ -103,7 +103,8 @@ static func _streetlight_items(roads: Array, intersections: Dictionary) -> Array
 				for s in [-1.0, 1.0]:
 					var toward_road: Vector3 = -side * s
 					var basis := Basis(toward_road, Vector3.UP, toward_road.cross(Vector3.UP))
-					items.append([Transform3D(basis, a + dir * t + side * s * offset), Color.WHITE])
+					var p: Vector3 = a + dir * t + side * s * offset
+					items.append([Transform3D(basis, Ground.at(Vector2(p.x, p.z))), Color.WHITE])
 				t += LIGHT_SPACING
 	return items
 

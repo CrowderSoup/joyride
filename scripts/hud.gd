@@ -2,10 +2,11 @@ class_name Hud
 extends CanvasLayer
 
 signal waypoint_changed(pos: Variant)
+signal map_toggled(open: bool)
 
-const HELP_TEXT := """W/S  walk / gas+brake     A/D  turn / steer     Shift  run     Space  jump / handbrake
+const HELP_TEXT := """WASD  walk / drive     Shift  run     Space  jump / handbrake     Mouse  look (Q/E on foot)
 F  get in / out     Plane in the air:  W/S pitch   A/D roll   Q/E rudder   Shift/Ctrl throttle
-M  map      R  unstick vehicle (on foot: back to the hangar)      H  hide help"""
+M  map      R  unstick vehicle (on foot: back to the hangar)      H  hide help      Esc  free mouse, again to quit"""
 
 const MINIMAP_SIZE := Vector2(280, 280)
 
@@ -97,6 +98,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _full_map.visible:
 			_full_map.fit_to_map()
 		get_tree().paused = _full_map.visible
+		map_toggled.emit(_full_map.visible)
 		get_viewport().set_input_as_handled()
 
 

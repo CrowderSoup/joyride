@@ -1,34 +1,31 @@
 class_name Airplane
-extends CharacterBody3D
+extends Vehicle
 ## Arcade prop plane. On the ground it drives like everything else: W/S gas and brake
 ## (tap S at a stop to back up), A/D steer. Past takeoff speed, hold S to lift off.
 ## In the air: W/S pitch, A/D roll, Q/E rudder, Shift/Ctrl throttle.
 
-const GROUND_Y := 0.0
 const GRAVITY := 9.8
 
-var display_name := "Prop Plane"
 var max_speed := 75.0
 var takeoff_speed := 28.0
 var stall_speed := 24.0
 var pitch_rate := 1.2
 var roll_rate := 2.2
 var yaw_rate := 0.5
-var camera_distance := 16.0
-var camera_height := 4.0
-var enter_radius := 5.0
-var exit_offset := Vector3(-1.5, 0, 1.3)  # behind the left wing
-
-var active := false
 var throttle := 0.0
-var visual := Node3D.new()
 var _speed := 0.0
 var _prop: Node3D
 
 
 func _init() -> void:
+	super()
+	display_name = "Prop Plane"
+	camera_distance = 16.0
+	camera_height = 4.0
+	enter_radius = 5.0
+	exit_offset = Vector3(-1.5, 0, 1.3)  # behind the left wing
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
-	add_child(visual)
+	add_engine(EngineSound.PROP)
 	Parts.collision_box(self, Vector3(1.2, 1.4, 8.3), Vector3(0, 1.48, 0.1))
 	Parts.collision_box(self, Vector3(11.0, 0.3, 1.6), Vector3(0, 2.3, -0.95))
 	Parts.collision_box(self, Vector3(3.5, 0.3, 1.1), Vector3(0, 1.5, 3.9))
@@ -47,7 +44,7 @@ func hud_extra() -> String:
 
 
 func set_driving(on: bool) -> void:
-	active = on
+	super(on)
 	if not on:
 		throttle = 0.0
 
@@ -58,13 +55,22 @@ func can_exit() -> bool:
 
 
 func stop() -> void:
-	velocity = Vector3.ZERO
+	super()
 	_speed = 0.0
 	throttle = 0.0
 
 
+func unstick() -> void:
+	super()
+	global_position.y -= 0.2  # planes sit right on the ground (see _is_grounded)
+
+
+func _ground_y() -> float:
+	return Ground.height(global_position.x, global_position.z)
+
+
 func _is_grounded() -> bool:
-	return global_position.y <= GROUND_Y + 0.05
+	return global_position.y <= _ground_y() + 0.05
 
 
 func _physics_process(delta: float) -> void:
@@ -133,7 +139,10 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	if get_slide_collision_count() > 0:
 		_speed *= 0.5
-	if global_position.y < GROUND_Y:
-		global_position.y = GROUND_Y
+	var ground_y := _ground_y()
+	if global_position.y < ground_y:
+		global_position.y = ground_y
 
 	_prop.rotate_z((5.0 + throttle * 40.0) * delta)
+	engine.rpm = throttle * 0.8 + clampf(_speed / max_speed, 0.0, 1.0) * 0.2
+	engine.load = throttle

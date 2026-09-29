@@ -39,6 +39,8 @@ void fragment() {
 	win = mix(win, band(y, height - 3.2, height - 2.2) * band(fract(x / 6.0), 0.1, 0.9), plain);
 	win *= 1.0 - smoothstep(height - 1.3, height - 1.0, y);
 	win *= is_wall;
+	// No windows in the foundation, where a building on a hill runs below its base.
+	win *= step(0.0, y);
 
 	// Each window pane gets its own shade so facades don't look like graph paper.
 	vec2 cell = floor(vec2(x / col_w, y / floor_h));
