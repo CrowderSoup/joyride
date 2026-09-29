@@ -33,6 +33,7 @@ var _ground_basis := Basis.IDENTITY
 var _ground_drop := 0.0
 var _settle := 30            # physics frames to keep grounding the visual after spawning
 var _halted := false         # stopped or teleported since the last step: ignore how we last moved
+var _keep := 1.0             # speed left after bumps since the last step
 
 
 func _init() -> void:
@@ -69,6 +70,10 @@ func set_driving(on: bool) -> void:
 		rider.visible = on
 
 
+func bump(fraction: float) -> void:
+	_keep *= 1.0 - fraction
+
+
 func stop() -> void:
 	super()
 	_speed = 0.0
@@ -96,8 +101,9 @@ func _physics_process(delta: float) -> void:
 	# downhill part flattened off, which would bleed speed on every descent.)
 	var moved := Vector3.ZERO if _halted else get_real_velocity()
 	_halted = false
-	var speed := moved.dot(fwd)
+	var speed := moved.dot(fwd) * _keep
 	var lateral := moved.dot(side)
+	_keep = 1.0
 	if on_floor:
 		speed -= SLOPE_PULL * fwd.y * delta
 
@@ -192,7 +198,7 @@ func _update_ground(delta: float) -> void:
 		return
 	_settle -= 1
 	var from := global_position + Vector3.UP * 1.0
-	var query := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 2.5)
+	var query := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 2.5, 1)
 	query.exclude = [get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	var drop := 0.0

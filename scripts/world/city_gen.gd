@@ -50,7 +50,7 @@ const AWNING_COLORS := [
 ]
 const CROWNS := ["", "", "pyramid", "cap", "mast", "spire"]
 
-var map := {"roads": [], "buildings": [], "areas": [], "trees": [], "props": [], "places": []}
+var map := {"roads": [], "buildings": [], "areas": [], "trees": [], "props": [], "places": [], "smashables": []}
 var rng := RandomNumberGenerator.new()
 
 
@@ -178,6 +178,7 @@ func _build() -> void:
 					if i == 6 and j == 10:
 						_liberty_park()
 	Landmarks.add_to_map(map)
+	_street_furniture()
 
 
 func _streets() -> void:
@@ -418,6 +419,111 @@ func _place(place_name: String, r: Rect2) -> void:
 	var c := r.get_center()
 	map.places.append(_road(place_name, "place", 0.0, [c - Vector2(r.size.x * 0.35, 0), c + Vector2(r.size.x * 0.35, 0)]))
 	map.places.append(_road(place_name, "place", 0.0, [c - Vector2(0, r.size.y * 0.35), c + Vector2(0, r.size.y * 0.35)]))
+
+
+# --- Street furniture (the stuff you can smash) ---------------------------
+
+## Hydrants, trash cans, newspaper boxes, mailboxes, benches, garbage bins and road-work
+## cones, as map.smashables entries: {kind, p: [x, z], yaw} with yaw facing the street.
+## Own RNG, so adding furniture never reshuffles the city.
+func _street_furniture() -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = 2002  # Olympics
+	for i in range(NS_RANGE.x + 1, NS_RANGE.y + 1):
+		for j in range(EW_RANGE.x + 1, EW_RANGE.y + 1):
+			var z := zone(i, j)
+			if z in ["temple", "capitol", "liberty"]:
+				continue
+			var block := block_rect(i, j)
+			for edge in _block_edges(block):
+				_furnish_edge(r, z, edge)
+	_road_work(r)
+
+
+## [start, end, outward normal] for each side of a block, walking clockwise.
+static func _block_edges(b: Rect2) -> Array:
+	return [
+		[b.position, Vector2(b.end.x, b.position.y), Vector2(0, -1)],
+		[Vector2(b.end.x, b.position.y), b.end, Vector2(1, 0)],
+		[b.end, Vector2(b.position.x, b.end.y), Vector2(0, 1)],
+		[Vector2(b.position.x, b.end.y), b.position, Vector2(-1, 0)],
+	]
+
+
+func _furnish_edge(r: RandomNumberGenerator, z: String, edge: Array) -> void:
+	var a: Vector2 = edge[0]
+	var n: Vector2 = edge[2]
+	var length: float = a.distance_to(edge[1])
+	var dir: Vector2 = (edge[1] - a) / length
+	# Along the edge at t, d meters out from the lot line (SIDEWALK - 0.5 is at the curb).
+	var at := func(t: float, d: float) -> Vector2: return a + dir * t + n * d
+	var curb := SIDEWALK - 0.5
+	var wall := 0.5
+
+	# A hydrant just past the corner, on about half the corners.
+	if r.randf() < 0.5:
+		_smashable("hydrant", at.call(r.randf_range(3.0, 6.0), curb), n)
+	match z:
+		"core", "ring":
+			var busy := z == "core"
+			var t := r.randf_range(12.0, 25.0)
+			while t < length - 12.0:
+				_smashable("trash_can", at.call(t, wall), n)
+				t += r.randf_range(30.0, 45.0) if busy else r.randf_range(50.0, 80.0)
+			if r.randf() < (0.6 if busy else 0.3):
+				# A row of newspaper boxes near the far corner.
+				var t0 := length - r.randf_range(8.0, 14.0)
+				for k in r.randi_range(2, 4):
+					_smashable("news_box", at.call(t0 - k * 0.7, wall), n)
+			if r.randf() < (0.5 if busy else 0.3):
+				_smashable("bench", at.call(length * r.randf_range(0.35, 0.65), wall + 0.3), n)
+			if r.randf() < 0.3:
+				_smashable("mailbox", at.call(r.randf_range(7.0, 10.0), curb - 0.3), n)
+		"residential":
+			# Garbage day: a couple of bins out at the curb in front of some houses.
+			var t := r.randf_range(10.0, 30.0)
+			while t < length - 10.0:
+				if r.randf() < 0.12:
+					for k in r.randi_range(1, 3):
+						_smashable("bin", at.call(t + k * 0.8, curb), n)
+				t += r.randf_range(20.0, 35.0)
+		"pioneer", "civic", "arena":
+			var t := r.randf_range(15.0, 25.0)
+			while t < length - 15.0:
+				_smashable("bench" if r.randf() < 0.6 else "trash_can", at.call(t, wall + 0.3), n)
+				t += r.randf_range(25.0, 40.0)
+		"industrial":
+			if r.randf() < 0.4:
+				_smashable("bin", at.call(r.randf_range(10.0, length - 10.0), curb), n)
+
+
+## Lane closures: a taper of cones across the curb lane, then a line down it.
+func _road_work(r: RandomNumberGenerator) -> void:
+	for road in map.roads:
+		if road.kind == "motorway" or road.width < 20.0:
+			continue
+		var pts: Array = road.pts
+		for s in range(1, pts.size()):
+			if r.randf() > 0.07:
+				continue
+			var a := Vector2(pts[s - 1][0], pts[s - 1][1])
+			var b := Vector2(pts[s][0], pts[s][1])
+			if r.randf() < 0.5:
+				var tmp := a
+				a = b
+				b = tmp
+			var dir := (b - a).normalized()
+			var side := Vector2(-dir.y, dir.x) * (1.0 if r.randf() < 0.5 else -1.0)
+			var half: float = road.width * 0.5
+			var start := r.randf_range(30.0, 60.0)
+			for k in 10:
+				var t := start + k * 4.5
+				var off := lerpf(half - 0.8, half * 0.5 - 0.3, clampf(k / 4.0, 0.0, 1.0))
+				_smashable("cone", a + dir * t + side * off, -dir)
+
+
+func _smashable(kind: String, p: Vector2, facing: Vector2) -> void:
+	map.smashables.append({"kind": kind, "p": [p.x, p.y], "yaw": atan2(-facing.x, -facing.y)})
 
 
 # --- Helpers ----------------------------------------------------------------

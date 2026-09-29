@@ -14,6 +14,8 @@ var camera := ChaseCamera.new()
 var hud := Hud.new()
 var world: World
 var lighting := Lighting.new()
+var coins := Coins.new()
+var smashables: Smashables
 var _street_name := ""
 var _street_timer := 0.0
 var _waypoint: Variant = null  # Vector2 in map space (world X/Z), or null
@@ -41,9 +43,14 @@ func _ready() -> void:
 		v.reset_physics_interpolation()
 		vehicles.append(v)
 	hud.set_vehicles(vehicles)
+	add_child(coins)
+	smashables = Smashables.new(world.map.smashables, vehicles, coins)
+	smashables.smashed.connect(_on_smashed)
+	add_child(smashables)
 	add_child(walker)
 	_place_walker(world.airport.spot("player"))
 	camera.set_target(walker)
+	coins.player = walker
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -91,6 +98,11 @@ func _on_waypoint_changed(pos: Variant) -> void:
 	_beacon.visible = pos != null
 	if pos != null:
 		_beacon.position = Vector3(pos.x, Ground.height(pos.x, pos.y) + _beacon.mesh.height * 0.5, pos.y)
+
+
+func _on_smashed(kind: String, _pos: Vector3, vehicle: Vehicle) -> void:
+	if vehicle == driving:
+		camera.shake(0.35 if kind in ["hydrant", "mailbox"] else 0.18)
 
 
 func _on_map_toggled(open: bool) -> void:
@@ -170,6 +182,7 @@ func _get_in(v: Vehicle) -> void:
 	v.play_door()
 	camera.set_target(v, false)
 	hud.set_player(v)
+	coins.player = v
 
 
 func _get_out() -> void:
@@ -186,6 +199,7 @@ func _get_out() -> void:
 	_place_walker(Transform3D(Basis(Vector3.UP, v.global_rotation.y), spot))
 	camera.set_target(walker, false)
 	hud.set_player(walker)
+	coins.player = walker
 
 
 ## Where to stand when getting out of v: its exit side, else the other side. null = boxed in.
@@ -194,6 +208,7 @@ func _exit_spot(v: Vehicle) -> Variant:
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = walker.shape
 	query.exclude = [v.get_rid()]
+	query.collision_mask = 1  # flying debris doesn't block the door
 	for side in [1.0, -1.0]:
 		var local: Vector3 = v.exit_offset * Vector3(side, 1, 1)
 		var p := yaw_only * local

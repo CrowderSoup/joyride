@@ -8,6 +8,7 @@ var camera_distance := 9.0
 var camera_height := 3.5
 var enter_radius := 3.0                  # how close you have to walk to get in
 var exit_offset := Vector3(-1.6, 0, 0)   # where you step out (driver's side); mirrored if blocked
+var footprint := Vector2(0.9, 2.4)       # half width, half length: what plows into things
 
 var active := false                      # someone's driving it
 var visual := Node3D.new()
@@ -55,6 +56,11 @@ func can_exit() -> bool:
 
 func stop() -> void:
 	velocity = Vector3.ZERO
+
+
+## Plowed through something: lose this fraction of your speed.
+func bump(_fraction: float) -> void:
+	pass
 
 
 ## Flipped, wedged, or crashed: set it back upright right where it is.

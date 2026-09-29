@@ -1,7 +1,8 @@
 # Joyride (working title)
 
 You're a driver. You drive shit. Cars, trucks, motorcycles, planes — around a city
-that's a lot like Salt Lake City. No missions, no cops, no timer. Cozy game for bros.
+that's a lot like Salt Lake City. No cops, no timer. Cozy game for bros. Plow through
+street furniture for coins.
 
 Built with Godot 4.7 (GDScript), 3D, Forward+ (Vulkan) renderer. Linux-only for now.
 Needs a Vulkan driver; on Apple Silicon Asahi that's `sudo pacman -S vulkan-asahi`.
@@ -40,6 +41,18 @@ To switch, stop, get out, and walk to another one. Vehicles stay wherever you le
 back up slowly), A/D to steer. Taxi out, line up on runway 35, hold W until the HUD says
 "Hold S to lift off" (~63 mph), then hold S. In the air: W/S pitch (S pulls up), A/D roll,
 Q/E rudder, Shift/Ctrl throttle. Banking turns you; let go and the wings level.
+
+## Smashing stuff
+
+Hydrants, trash cans, newspaper boxes, mailboxes, benches, garbage bins and road-work
+cones line the streets (`CityGen._street_furniture`, about 2,400 of them). Drive through
+one and it goes flying, coins pop out and fly to you, and the counter under the minimap
+goes up. Bigger things are worth more and cost you more speed; hydrants gush. Smashed
+props come back a couple of minutes later once you're well away. Coins are saved to
+`user://save.json` (the `Game` autoload).
+
+Intact props are MultiMesh instances with no physics; each moving vehicle checks the
+props near its footprint every physics frame, and only a hit becomes a rigid body.
 
 ## The ground
 
@@ -85,6 +98,10 @@ all of that in the right order.
 
 ```
 scripts/main.gd                 parked vehicles, getting in/out, waypoint, HUD updates
+scripts/game.gd                 autoload (Game): coins, saved to user://save.json
+scripts/smash/smashables.gd     street furniture: batched drawing, hit tests, debris, respawn
+scripts/smash/smash_props.gd    what each prop is worth, how it hits, and its model
+scripts/smash/coins.gd          coin pickups that spray out and home in on you
 scripts/controls.gd             the input map
 scripts/player/walker.gd        you, on foot
 scripts/world/world.gd          builds the static world, in order
@@ -112,7 +129,7 @@ scripts/vehicles/motorcycle.gd  middleweight naked bike; fork and bars steer on 
 scripts/vehicles/airplane.gd    arcade flight model
 scripts/vehicles/plane_model.gd Cessna 172-style high-wing plane
 scripts/audio/engine_sound.gd   synthesized engines and tire squeal (no audio files)
-scripts/audio/sfx.gd            synthesized one-shots: doors, footsteps
+scripts/audio/sfx.gd            synthesized one-shots: doors, footsteps, crashes, coins
 tools/fetch_elevation.py        real DEM -> data/elevation_*.f32
 ```
 
@@ -131,10 +148,6 @@ tools/fetch_elevation.py        real DEM -> data/elevation_*.f32
   and a warm-sun/cool-ambient split. Buildings and the road surface are split into 500 m
   tiles (`MeshTiles`) so off-screen and out-of-shadow-range parts get culled.
 
-## Ideas for later
+## What's next
 
-- Name it
-- A radio
-- Bigger map: Sugar House, the U, the Avenues, Great Salt Lake
-- Helicopter, boat, lawnmower
-- Ambient traffic, time of day, snow
+See [ROADMAP.md](ROADMAP.md) for what's done, what's next, and known issues.

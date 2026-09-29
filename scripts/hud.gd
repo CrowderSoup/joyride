@@ -14,6 +14,9 @@ var _status := Label.new()
 var _street := Label.new()
 var _help := Label.new()
 var _prompt := Label.new()
+var _coins := HBoxContainer.new()
+var _coin_label := Label.new()
+var _coin_tween: Tween
 var _minimap: MapView
 var _full_map: MapView
 
@@ -46,6 +49,31 @@ func _init() -> void:
 	_prompt.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_prompt.position.y -= 110
 	add_child(_prompt)
+
+	# Coin counter under the minimap.
+	var icon := Panel.new()
+	icon.custom_minimum_size = Vector2(30, 30)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var round := StyleBoxFlat.new()
+	round.bg_color = Color(1.0, 0.78, 0.15)
+	round.border_color = Color(0.55, 0.35, 0.05)
+	round.set_border_width_all(3)
+	round.set_corner_radius_all(15)
+	icon.add_theme_stylebox_override("panel", round)
+	_coins.add_child(icon)
+	_coin_label.label_settings = _settings(34)
+	_coin_label.label_settings.font_color = Color(1.0, 0.86, 0.35)
+	_coins.add_child(_coin_label)
+	_coins.add_theme_constant_override("separation", 10)
+	_coins.alignment = BoxContainer.ALIGNMENT_END
+	_coins.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_coins.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_coins.position = Vector2(-20 - 200, 20 + MINIMAP_SIZE.y + 12)
+	_coins.size = Vector2(200, 44)
+	_coins.pivot_offset = Vector2(170, 22)
+	add_child(_coins)
+	_coin_label.text = str(Game.coins)
+	Game.coins_changed.connect(_on_coins_changed)
 
 
 
@@ -113,6 +141,15 @@ func update(vehicle_name: String, speed_mps: float, extra: String, street: Strin
 		line += "\nWaypoint  %.1f mi" % (waypoint_dist / 1609.34)
 	_status.text = line
 	_street.text = street
+
+
+func _on_coins_changed(total: int, _delta: int) -> void:
+	_coin_label.text = str(total)
+	if _coin_tween:
+		_coin_tween.kill()
+	_coins.scale = Vector2.ONE * 1.25
+	_coin_tween = create_tween()
+	_coin_tween.tween_property(_coins, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func toggle_help() -> void:

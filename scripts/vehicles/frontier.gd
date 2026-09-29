@@ -25,6 +25,7 @@ static func make() -> GroundVehicle:
 	v.camera_height = 3.8
 	v.enter_radius = 3.6
 	v.exit_offset = Vector3(-1.6, 0, -0.4)
+	v.footprint = Vector2(0.93, 2.65)
 	Parts.collision_box(v, Vector3(1.85, 1.6, 5.3), Vector3(0, 0.8, 0))
 	v.add_engine(EngineSound.TRUCK)
 

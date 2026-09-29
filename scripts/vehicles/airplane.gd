@@ -24,6 +24,7 @@ func _init() -> void:
 	camera_height = 4.0
 	enter_radius = 5.0
 	exit_offset = Vector3(-1.5, 0, 1.3)  # behind the left wing
+	footprint = Vector2(0.8, 4.2)  # the fuselage; the wings pass over street furniture
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	add_engine(EngineSound.PROP)
 	Parts.collision_box(self, Vector3(1.2, 1.4, 8.3), Vector3(0, 1.48, 0.1))
@@ -58,6 +59,10 @@ func stop() -> void:
 	super()
 	_speed = 0.0
 	throttle = 0.0
+
+
+func bump(fraction: float) -> void:
+	_speed *= 1.0 - fraction
 
 
 func unstick() -> void:

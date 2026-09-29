@@ -8,6 +8,10 @@ config/description="Just drive shit around Salt Lake City."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
+[autoload]
+
+Game="*res://scripts/game.gd"
+
 [display]
 
 window/size/viewport_width=1600
