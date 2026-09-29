@@ -17,10 +17,13 @@ var lean_amount := 0.04      # visual roll into turns
 var pitch_amount := 0.0      # visual squat/dive per m/s^2 of acceleration
 var camera_distance := 9.0
 var camera_height := 3.5
+var enter_radius := 3.0              # how close you have to walk to get in
+var exit_offset := Vector3(-1.6, 0, 0)  # where you step out (driver's side); mirrored if blocked
 
 var active := false
 var visual := Node3D.new()
 var body: Node3D             # the part that leans/pitches; null = the whole visual
+var rider: Node3D            # only shown while someone's driving (bikes)
 var _steer := 0.0
 var _speed := 0.0
 var _prev_speed := 0.0
@@ -55,6 +58,22 @@ func hud_extra() -> String:
 	return ""
 
 
+func set_driving(on: bool) -> void:
+	active = on
+	if rider:
+		rider.visible = on
+
+
+func can_exit() -> bool:
+	return absf(_speed) < 2.0
+
+
+func stop() -> void:
+	velocity = Vector3.ZERO
+	_speed = 0.0
+	_prev_speed = 0.0
+
+
 func _physics_process(delta: float) -> void:
 	var throttle := 0.0
 	var steer_input := 0.0
@@ -74,7 +93,8 @@ func _physics_process(delta: float) -> void:
 	elif throttle < 0.0:
 		speed -= (braking if speed > 0.5 else acceleration * 0.6) * -throttle * delta
 	else:
-		speed = move_toward(speed, 0.0, rolling_drag * delta)
+		# Parked vehicles sit on the brake instead of coasting.
+		speed = move_toward(speed, 0.0, (rolling_drag if active else braking) * delta)
 	if handbrake:
 		speed = move_toward(speed, 0.0, 8.0 * delta)
 	speed = clampf(speed, -reverse_speed, top_speed)
@@ -117,6 +137,7 @@ func _physics_process(delta: float) -> void:
 static func make_sedan() -> GroundVehicle:
 	var v := GroundVehicle.new()
 	v.display_name = "Sedan"
+	v.exit_offset = Vector3(-1.6, 0, -0.2)
 	Parts.collision_box(v, Vector3(1.9, 1.2, 4.3), Vector3(0, 0.6, 0))
 	var paint := Color(0.15, 0.55, 0.6)
 	Parts.box(v.visual, Vector3(1.9, 0.7, 4.3), paint, Vector3(0, 0.65, 0))
@@ -137,12 +158,16 @@ static func make_motorcycle() -> GroundVehicle:
 	v.lean_amount = 0.55
 	v.camera_distance = 6.5
 	v.camera_height = 2.5
+	v.enter_radius = 2.2
+	v.exit_offset = Vector3(-1.0, 0, 0)
 	Parts.collision_box(v, Vector3(0.7, 1.3, 2.1), Vector3(0, 0.65, 0))
 	Parts.box(v.visual, Vector3(0.35, 0.45, 1.5), Color(0.1, 0.1, 0.12), Vector3(0, 0.75, 0))
 	Parts.box(v.visual, Vector3(0.45, 0.35, 0.7), Color(0.9, 0.55, 0.1), Vector3(0, 1.0, -0.3))
-	# Rider
-	Parts.box(v.visual, Vector3(0.45, 0.7, 0.35), Color(0.2, 0.25, 0.35), Vector3(0, 1.5, 0.15))
-	Parts.box(v.visual, Vector3(0.3, 0.3, 0.3), Color(0.05, 0.05, 0.05), Vector3(0, 2.0, 0.05))
+	v.rider = Node3D.new()
+	v.rider.visible = false
+	v.visual.add_child(v.rider)
+	Parts.box(v.rider, Vector3(0.45, 0.7, 0.35), Color(0.2, 0.25, 0.35), Vector3(0, 1.5, 0.15))
+	Parts.box(v.rider, Vector3(0.3, 0.3, 0.3), Color(0.05, 0.05, 0.05), Vector3(0, 2.0, 0.05))
 	Parts.wheel(v.visual, 0.35, 0.18, Vector3(0, 0.35, -0.75))
 	Parts.wheel(v.visual, 0.35, 0.18, Vector3(0, 0.35, 0.75))
 	return v

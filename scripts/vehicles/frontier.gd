@@ -23,6 +23,8 @@ static func make() -> GroundVehicle:
 	v.pitch_amount = 0.004
 	v.camera_distance = 10.5
 	v.camera_height = 3.8
+	v.enter_radius = 3.6
+	v.exit_offset = Vector3(-1.6, 0, -0.4)
 	Parts.collision_box(v, Vector3(1.85, 1.6, 5.3), Vector3(0, 0.8, 0))
 
 	v.body = Node3D.new()

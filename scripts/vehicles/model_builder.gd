@@ -40,7 +40,7 @@ func quad(mat_name: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, outw
 ## Extrude a side profile (points are (z, y)) across X.
 ## half_width is a float, or a Callable(y) -> float for tumblehome/tapers.
 func extrude(mat_name: String, profile: PackedVector2Array, half_width: Variant, center_x := 0.0) -> void:
-	var poly := profile
+	var poly := profile.duplicate()  # reverse() below would flip the caller's array too
 	if _signed_area(poly) < 0.0:
 		poly.reverse()
 	var n := poly.size()

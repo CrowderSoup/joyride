@@ -15,9 +15,11 @@ func _init() -> void:
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 
 
-func set_target(new_target: Node3D) -> void:
+## snap = jump straight there; otherwise glide over (getting in and out of vehicles).
+func set_target(new_target: Node3D, snap := true) -> void:
 	target = new_target
-	global_position = _desired_position(target.global_transform)
+	if snap:
+		global_position = _desired_position(target.global_transform)
 	_look(target.global_transform)
 
 
@@ -33,7 +35,7 @@ func _process(delta: float) -> void:
 
 func _desired_position(t: Transform3D) -> Vector3:
 	var back := t.basis.z
-	if target is GroundVehicle:
+	if not target is Airplane:
 		back.y = 0.0
 	back = back.normalized()
 	var pos: Vector3 = t.origin + back * target.camera_distance + Vector3.UP * target.camera_height

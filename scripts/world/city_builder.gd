@@ -1,6 +1,6 @@
 class_name CityBuilder
 extends RefCounted
-## Builds the drivable city (ground, lots, parks, roads, buildings) from the map JSON.
+## Builds the drivable city (ground, lots, parks, roads, buildings) from the map data.
 ## Street furniture lives in Scenery, the mountains in Terrain.
 
 # Everything is flat; these tiny offsets just keep overlapping layers from z-fighting.
@@ -16,6 +16,8 @@ const MARKING_LIFT := 0.012
 const GROUND_COLOR := Color(0.34, 0.4, 0.25)
 const GREEN_COLOR := Color(0.3, 0.5, 0.2)
 const PARKING_COLOR := Color(0.25, 0.25, 0.26)
+const AEROWAY_COLOR := Color(0.19, 0.19, 0.2)
+const WATER_COLOR := Color(0.22, 0.4, 0.52)
 const SIDEWALK_COLOR := Color(0.52, 0.51, 0.48)
 const ROAD_COLOR := Color(0.13, 0.13, 0.14)
 const SERVICE_COLOR := Color(0.2, 0.2, 0.21)
@@ -50,7 +52,7 @@ static func build(map: Dictionary, intersections: Dictionary) -> Node3D:
 	root.name = "City"
 	root.add_child(_build_ground())
 	root.add_child(_build_surface(map, intersections))
-	root.add_child(_build_buildings(map.buildings))
+	root.add_child(_build_buildings(map.buildings, map.get("props", [])))
 	return root
 
 
@@ -106,8 +108,17 @@ static func _build_surface(map: Dictionary, intersections: Dictionary) -> Static
 	var tiles := MeshTiles.new()
 
 	for area in map.areas:
-		var y := PARKING_Y if area.kind == "parking" else GREEN_Y
-		var col := PARKING_COLOR if area.kind == "parking" else GREEN_COLOR
+		var y := GREEN_Y
+		var col := GREEN_COLOR
+		if area.kind == "parking":
+			y = PARKING_Y
+			col = PARKING_COLOR
+		elif area.kind == "aeroway":
+			y = PARKING_Y
+			col = AEROWAY_COLOR
+		elif area.kind == "water":
+			y = GREEN_Y + 0.004
+			col = WATER_COLOR
 		var poly := PackedVector2Array()
 		for p in area.pts:
 			poly.append(Vector2(p[0], p[1]))
@@ -222,18 +233,28 @@ static func _add_disc(buf: MeshBuffer, center: Vector3, radius: float, col: Colo
 			Vector3.UP, col)
 
 
-static func _build_buildings(buildings: Array) -> StaticBody3D:
+## props: plain colored boxes (awnings, loading doors) that ride along in the building tiles.
+static func _build_buildings(buildings: Array, props: Array) -> StaticBody3D:
 	var tiles := MeshTiles.new()
 	for idx in buildings.size():
+		if buildings[idx].get("custom", false):
+			continue  # built elsewhere (the hangar); only in the list so the maps draw it
 		var p: Array = buildings[idx].pts[0]
 		_add_building(tiles.at(Vector3(p[0], 0, p[1])), buildings[idx], idx)
+	for prop in props:
+		var c := Vector3(prop.c[0], prop.c[1], prop.c[2])
+		_add_box(tiles.at(c), c, Vector3(prop.s[0], prop.s[1], prop.s[2]), Color(prop.col[0], prop.col[1], prop.col[2]), Vector2.ZERO)
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/building.gdshader")
 	return tiles.build("Buildings", mat, true, true)
 
 
+## Building fields: pts, h, and optionally y0 (base height, for tower tiers stacked on a
+## podium), mat (wall shader: 1 windows, 2 glass curtain wall, 3 brick, 4 plain), col,
+## roof ("flat", "hip", "gable"), crown ("pyramid", "spire", "cap", "mast").
 static func _add_building(buf: MeshBuffer, b: Dictionary, idx: int) -> void:
 	var h: float = b.h
+	var y0: float = b.get("y0", 0.0)
 	var poly := PackedVector2Array()
 	for p in b.pts:
 		poly.append(Vector2(p[0], p[1]))
@@ -250,9 +271,14 @@ static func _add_building(buf: MeshBuffer, b: Dictionary, idx: int) -> void:
 	var outward_sign := 1.0 if area2 > 0.0 else -1.0
 	var area := absf(area2) * 0.5
 
-	var is_house := h <= 9.0 and area < 300.0 and _is_convex(poly)
+	var roof: String = b.get("roof", "")
+	if roof == "":
+		roof = "hip" if h <= 9.0 and area < 300.0 and _is_convex(poly) else "flat"
+	var is_house := roof != "flat"
 	var wall_col: Color = (HOUSE_COLORS if is_house else WALL_COLORS)[idx % (HOUSE_COLORS.size() if is_house else WALL_COLORS.size())]
-	var wall_flags := Vector2(1.0, h)
+	if b.has("col"):
+		wall_col = Color(b.col[0], b.col[1], b.col[2])
+	var wall_flags := Vector2(b.get("mat", 1.0), h)
 	var roof_flags := Vector2(0.0, h)
 
 	# Walls. UV = meters along the perimeter / meters up, for the window shader.
@@ -266,14 +292,18 @@ static func _add_building(buf: MeshBuffer, b: Dictionary, idx: int) -> void:
 			continue
 		var normal := Vector3(d.y, 0, -d.x).normalized() * outward_sign
 		buf.add_quad(
-			Vector3(p0.x, 0, p0.y), Vector3(p1.x, 0, p1.y),
+			Vector3(p0.x, y0, p0.y), Vector3(p1.x, y0, p1.y),
 			Vector3(p1.x, h, p1.y), Vector3(p0.x, h, p0.y),
 			normal, wall_col,
-			Vector2(run, 0), Vector2(run + seg, 0), Vector2(run + seg, h), Vector2(run, h), wall_flags)
+			Vector2(run, y0), Vector2(run + seg, y0), Vector2(run + seg, h), Vector2(run, h), wall_flags)
 		run += seg
 
+	var roof_col: Color = ROOF_COLORS[idx % ROOF_COLORS.size()]
+	if roof == "gable" and n == 4:
+		_add_gable_roof(buf, poly, h, roof_col, wall_col, roof_flags)
+		return
 	if is_house:
-		_add_hip_roof(buf, poly, h, area, ROOF_COLORS[idx % ROOF_COLORS.size()], roof_flags)
+		_add_hip_roof(buf, poly, h, area, roof_col, roof_flags)
 		return
 
 	# Flat roof sunk below a parapet: inward-facing walls make the lip.
@@ -294,8 +324,28 @@ static func _add_building(buf: MeshBuffer, b: Dictionary, idx: int) -> void:
 		buf.add_tri(_v3(poly[tris[t]], roof_y), _v3(poly[tris[t + 1]], roof_y), _v3(poly[tris[t + 2]], roof_y),
 			Vector3.UP, FLAT_ROOF_COLOR, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, roof_flags)
 
-	if h >= 12.0 and area > 300.0:
-		_add_rooftop_units(buf, poly, roof_y, area, idx, roof_flags)
+	var crown: String = b.get("crown", "")
+	var metal := wall_col.darkened(0.35).lerp(Color(0.5, 0.52, 0.55), 0.5)
+	match crown:
+		"pyramid":
+			_add_hip_roof(buf, poly, roof_y, area, metal, roof_flags, sqrt(area) * 0.7)
+		"spire":
+			_add_hip_roof(buf, poly, roof_y, area, metal, roof_flags, sqrt(area) * 0.45)
+			_add_box(buf, _v3(_centroid(poly), roof_y + sqrt(area) * 0.45 + 12.0), Vector3(0.9, 24.0, 0.9), metal, roof_flags)
+		"cap":
+			# Mechanical penthouse: a smaller, windowless box on top.
+			var c := _centroid(poly)
+			var s := sqrt(area) * 0.55
+			_add_box(buf, _v3(c, roof_y + 3.5), Vector3(s, 7.0, s), wall_col.darkened(0.15), roof_flags)
+		"mast":
+			var c := _centroid(poly)
+			_add_rooftop_units(buf, poly, roof_y, area, idx, roof_flags)
+			for k in 3:
+				var off := Vector2(k - 1, (k % 2) - 0.5) * 3.0
+				_add_box(buf, _v3(c + off, roof_y + 8.0 + k * 3.0), Vector3(0.4, 16.0 + k * 6.0, 0.4), Color(0.7, 0.7, 0.72), roof_flags)
+		_:
+			if h >= 12.0 and area > 300.0:
+				_add_rooftop_units(buf, poly, roof_y, area, idx, roof_flags)
 
 
 static func _is_convex(poly: PackedVector2Array) -> bool:
@@ -315,12 +365,19 @@ static func _is_convex(poly: PackedVector2Array) -> bool:
 	return true
 
 
-static func _add_hip_roof(buf: MeshBuffer, poly: PackedVector2Array, h: float, area: float, col: Color, flags: Vector2) -> void:
+static func _centroid(poly: PackedVector2Array) -> Vector2:
 	var center := Vector2.ZERO
 	for p in poly:
 		center += p
-	center /= poly.size()
-	var apex := _v3(center, h + clampf(sqrt(area) * 0.22, 1.2, 3.2))
+	return center / poly.size()
+
+
+## rise < 0 = house-sized default.
+static func _add_hip_roof(buf: MeshBuffer, poly: PackedVector2Array, h: float, area: float, col: Color, flags: Vector2, rise := -1.0) -> void:
+	var center := _centroid(poly)
+	if rise < 0.0:
+		rise = clampf(sqrt(area) * 0.22, 1.2, 3.2)
+	var apex := _v3(center, h + rise)
 	for i in poly.size():
 		var a := _v3(poly[i], h)
 		var b := _v3(poly[(i + 1) % poly.size()], h)
@@ -330,11 +387,34 @@ static func _add_hip_roof(buf: MeshBuffer, poly: PackedVector2Array, h: float, a
 		buf.add_tri(a, b, apex, n, col, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, flags)
 
 
+## Ridge along the long side of a 4-point footprint; the gable ends are wall-colored.
+static func _add_gable_roof(buf: MeshBuffer, poly: PackedVector2Array, h: float, col: Color, wall_col: Color, flags: Vector2) -> void:
+	var p := poly
+	if p[0].distance_to(p[1]) < p[1].distance_to(p[2]):
+		p = PackedVector2Array([poly[1], poly[2], poly[3], poly[0]])
+	var span := p[1].distance_to(p[2])
+	var rise := minf(span * 0.35, 5.0)
+	var r1 := _v3((p[1] + p[2]) * 0.5, h + rise)
+	var r0 := _v3((p[3] + p[0]) * 0.5, h + rise)
+	var center := _v3(_centroid(poly), h)
+	for slope in [[p[0], p[1], r1, r0], [p[2], p[3], r0, r1]]:
+		var a := _v3(slope[0], h)
+		var b := _v3(slope[1], h)
+		var n: Vector3 = (b - a).cross(slope[2] - a).normalized()
+		if n.y < 0.0:
+			n = -n
+		buf.add_quad(a, b, slope[2], slope[3], n, col, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, flags)
+	for gable in [[p[1], p[2], r1], [p[3], p[0], r0]]:
+		var a := _v3(gable[0], h)
+		var b := _v3(gable[1], h)
+		var n: Vector3 = (b - a).cross(gable[2] - a).normalized()
+		if n.dot(a - center) < 0.0:
+			n = -n
+		buf.add_tri(a, b, gable[2], n, wall_col, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, flags)
+
+
 static func _add_rooftop_units(buf: MeshBuffer, poly: PackedVector2Array, roof_y: float, area: float, idx: int, flags: Vector2) -> void:
-	var center := Vector2.ZERO
-	for p in poly:
-		center += p
-	center /= poly.size()
+	var center := _centroid(poly)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = idx
 	var spread := sqrt(area) * 0.25

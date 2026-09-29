@@ -3,16 +3,16 @@ extends CanvasLayer
 
 signal waypoint_changed(pos: Variant)
 
-const HELP_TEXT := """W/S  gas / brake      A/D  steer      Space  handbrake
-Plane:  W/S pitch   A/D roll   Q/E rudder   Shift/Ctrl throttle
-Tab  switch vehicle      M  map      R  back to Temple Square      H  hide help"""
+const HELP_TEXT := """W/S  walk / gas+brake     A/D  turn / steer     Shift  run     Space  jump / handbrake
+F  get in / out     Plane in the air:  W/S pitch   A/D roll   Q/E rudder   Shift/Ctrl throttle
+M  map      R  unstick vehicle (on foot: back to the hangar)      H  hide help"""
 
 const MINIMAP_SIZE := Vector2(280, 280)
 
 var _status := Label.new()
 var _street := Label.new()
 var _help := Label.new()
-var _credit := Label.new()
+var _prompt := Label.new()
 var _minimap: MapView
 var _full_map: MapView
 
@@ -38,15 +38,14 @@ func _init() -> void:
 	_help.position += Vector2(24, -18)
 	add_child(_help)
 
-	# ODbL requires attribution for the OpenStreetMap data.
-	var credit := _credit
-	credit.label_settings = _settings(14)
-	credit.text = "Map data © OpenStreetMap contributors"
-	credit.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	credit.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	credit.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	credit.position += Vector2(-16, -12)
-	add_child(credit)
+	_prompt.label_settings = _settings(26)
+	_prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_prompt.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_prompt.position.y -= 110
+	add_child(_prompt)
+
 
 
 func setup_map(geometry: MapGeometry, player: Node3D) -> void:
@@ -61,13 +60,22 @@ func setup_map(geometry: MapGeometry, player: Node3D) -> void:
 	_full_map.waypoint_set.connect(_set_waypoint)
 	_full_map.waypoint_cleared.connect(_set_waypoint.bind(null))
 	add_child(_full_map)
-	move_child(_credit, -1)
 	set_player(player)
 
 
 func set_player(player: Node3D) -> void:
 	_minimap.player = player
 	_full_map.player = player
+
+
+## Vehicles to mark on the maps, so you can find where you left them.
+func set_vehicles(vehicles: Array) -> void:
+	_minimap.vehicles = vehicles
+	_full_map.vehicles = vehicles
+
+
+func set_prompt(text: String) -> void:
+	_prompt.text = text
 
 
 func clear_waypoint() -> void:
@@ -92,8 +100,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-func update(vehicle_name: String, speed_mps: float, extra: String, street: String, waypoint_dist := -1.0) -> void:
-	var line := "%s   %d mph" % [vehicle_name, roundi(absf(speed_mps) * 2.237)]
+## Pass show_speed = false on foot.
+func update(vehicle_name: String, speed_mps: float, extra: String, street: String, waypoint_dist := -1.0, show_speed := true) -> void:
+	var line := vehicle_name
+	if show_speed:
+		line += "   %d mph" % roundi(absf(speed_mps) * 2.237)
 	if extra != "":
 		line += "   " + extra
 	if waypoint_dist >= 0.0:

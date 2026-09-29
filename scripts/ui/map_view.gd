@@ -12,6 +12,7 @@ const MINI_BG_COLOR := Color(0.12, 0.14, 0.12, 0.85)
 const FULL_BG_COLOR := Color(0.1, 0.11, 0.1)
 const PLAYER_COLOR := Color(0.3, 0.9, 1.0)
 const WAYPOINT_COLOR := Color(1.0, 0.3, 0.6)
+const VEHICLE_COLOR := Color(1.0, 0.85, 0.3)
 const MINI_ZOOM := 0.35  # pixels per meter
 const MIN_ZOOM := 0.05
 const MAX_ZOOM := 3.0
@@ -21,6 +22,7 @@ var mode := Mode.MINI
 var geometry: MapGeometry
 var player: Node3D
 var waypoint: Variant = null  # Vector2 or null
+var vehicles: Array = []  # parked vehicles to mark (the one you're in is skipped)
 
 var _zoom := MINI_ZOOM
 var _offset := Vector2.ZERO  # FULL mode: screen = world * _zoom + _offset
@@ -84,6 +86,8 @@ func _draw() -> void:
 		draw_circle(wp, 9.0, Color.BLACK)
 		draw_circle(wp, 7.0, WAYPOINT_COLOR)
 
+	_draw_vehicles(xf)
+
 	# In map space the player's heading is (-sin yaw, -cos yaw); an up-pointing arrow
 	# rotated by -yaw matches it. On the minimap the map itself is rotated, so it stays up.
 	var arrow_rot := -_player_yaw() if mode == Mode.FULL else 0.0
@@ -125,6 +129,22 @@ func _draw_labels(xf: Transform2D) -> void:
 		drawn.append(rect)
 		draw_string_outline(font, at, label.name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 4, Color.BLACK)
 		draw_string(font, at, label.name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
+
+
+func _draw_vehicles(xf: Transform2D) -> void:
+	var font := get_theme_default_font()
+	for v: Node3D in vehicles:
+		if v == player:
+			continue
+		var pos := xf * Vector2(v.global_position.x, v.global_position.z)
+		if mode == Mode.MINI and not Rect2(Vector2.ZERO, size).has_point(pos):
+			continue
+		draw_rect(Rect2(pos - Vector2(6, 6), Vector2(12, 12)), Color.BLACK)
+		draw_rect(Rect2(pos - Vector2(4.5, 4.5), Vector2(9, 9)), VEHICLE_COLOR)
+		if mode == Mode.FULL:
+			var at := pos + Vector2(10, 5)
+			draw_string_outline(font, at, v.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color.BLACK)
+			draw_string(font, at, v.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, VEHICLE_COLOR)
 
 
 func _draw_north_marker() -> void:

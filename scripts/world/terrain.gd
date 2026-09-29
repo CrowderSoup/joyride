@@ -2,6 +2,7 @@ class_name Terrain
 extends RefCounted
 ## Low-poly mountains around the valley: the Wasatch east of downtown, the foothills
 ## behind the Capitol to the north, and the Oquirrhs out west. Flat-shaded on purpose.
+## Pulled in closer than real life so they frame the (also compressed) city.
 
 const EXTENT := 28000.0
 const STEP := 300.0
@@ -69,10 +70,10 @@ static func build() -> StaticBody3D:
 static func height_at(x: float, z: float, noise: FastNoiseLite, detail: FastNoiseLite) -> float:
 	var ridged := 1.0 - absf(noise.get_noise_2d(x, z))
 	var bumps := detail.get_noise_2d(x, z)
-	# Wasatch: rises fast a few km east of downtown, big and jagged.
-	var wasatch := smoothstep(4500.0, 11000.0, x) * (1300.0 + 900.0 * ridged + 150.0 * bumps)
-	# Foothills north of the Avenues (Ensign Peak / Capitol area), fading out to the west.
-	var north := smoothstep(-3600.0, -8000.0, z) * smoothstep(-4000.0, 0.0, x) * (350.0 + 450.0 * ridged + 60.0 * bumps)
+	# Wasatch: rises fast a couple km east of downtown, big and jagged.
+	var wasatch := smoothstep(3000.0, 9000.0, x) * (1300.0 + 900.0 * ridged + 150.0 * bumps)
+	# Foothills behind the Capitol, fading out to the west so the runway's approach is clear.
+	var north := smoothstep(-1500.0, -6000.0, z) * smoothstep(-1500.0, 500.0, x) * (350.0 + 450.0 * ridged + 60.0 * bumps)
 	# Oquirrhs: far west, south of the lake.
 	var oquirrh := smoothstep(-15000.0, -21000.0, x) * smoothstep(-12000.0, -3000.0, z) * (1000.0 + 500.0 * ridged + 100.0 * bumps)
 	return maxf(wasatch, maxf(north, oquirrh))

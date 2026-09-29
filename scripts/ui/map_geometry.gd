@@ -7,6 +7,10 @@ const BUILDING_COLOR := Color(0.3, 0.3, 0.34)
 const MINOR_ROAD_COLOR := Color(0.55, 0.55, 0.58)
 const MAJOR_ROAD_COLOR := Color(0.95, 0.8, 0.4)
 const MOTORWAY_COLOR := Color(0.95, 0.55, 0.3)
+const AEROWAY_COLOR := Color(0.42, 0.42, 0.46)
+const AREA_COLORS := {
+	"aeroway": AEROWAY_COLOR, "green": Color(0.2, 0.32, 0.18), "water": Color(0.2, 0.36, 0.5),
+}
 const MAJOR_KINDS := ["trunk", "primary", "secondary"]
 const LABEL_KINDS := ["motorway", "trunk", "primary", "secondary", "tertiary"]
 const LABEL_SPACING := 700.0
@@ -21,6 +25,9 @@ var _colors := PackedColorArray()
 
 
 func _init(map: Dictionary) -> void:
+	for area in map.areas:
+		if AREA_COLORS.has(area.kind):
+			_add_polygon(area.pts, AREA_COLORS[area.kind])
 	for b in map.buildings:
 		var poly := PackedVector2Array()
 		for p in b.pts:
@@ -71,6 +78,15 @@ static func _rank(kind: String) -> int:
 	if kind == "service":
 		return 0
 	return 1
+
+
+func _add_polygon(pts: Array, col: Color) -> void:
+	var poly := PackedVector2Array()
+	for p in pts:
+		poly.append(Vector2(p[0], p[1]))
+	for i in Geometry2D.triangulate_polygon(poly):
+		_verts.append(poly[i])
+		_colors.append(col)
 
 
 func _add_ribbon(a: Vector2, b: Vector2, half_width: float, col: Color) -> void:

@@ -1,6 +1,6 @@
 class_name Scenery
 extends RefCounted
-## Street furniture scattered as chunked MultiMeshes: real OSM street trees and streetlights.
+## Street furniture scattered as chunked MultiMeshes: trees and streetlights.
 
 const CHUNK := 400.0
 const TREE_RANGE := 2200.0
