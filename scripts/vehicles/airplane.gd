@@ -29,23 +29,10 @@ var _prop: Node3D
 func _init() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	add_child(visual)
-	Parts.collision_box(self, Vector3(2.0, 1.6, 7.0), Vector3(0, 1.2, 0))
-	Parts.collision_box(self, Vector3(10.0, 0.3, 1.6), Vector3(0, 1.9, -0.6))
-	Parts.collision_box(self, Vector3(3.5, 0.3, 0.9), Vector3(0, 1.6, 3.1))
-	var paint := Color(0.95, 0.93, 0.88)
-	var trim := Color(0.85, 0.3, 0.2)
-	Parts.box(visual, Vector3(1.2, 1.2, 7.0), paint, Vector3(0, 1.4, 0))
-	Parts.box(visual, Vector3(10.0, 0.15, 1.6), trim, Vector3(0, 1.9, -0.6))
-	Parts.box(visual, Vector3(3.5, 0.12, 0.9), trim, Vector3(0, 1.6, 3.1))
-	Parts.box(visual, Vector3(0.12, 1.3, 1.0), trim, Vector3(0, 2.4, 3.1))
-	Parts.box(visual, Vector3(1.0, 0.5, 1.2), Color(0.1, 0.12, 0.15), Vector3(0, 2.2, -1.3))
-	Parts.wheel(visual, 0.3, 0.2, Vector3(-1.0, 0.3, -1.0))
-	Parts.wheel(visual, 0.3, 0.2, Vector3(1.0, 0.3, -1.0))
-	Parts.wheel(visual, 0.2, 0.15, Vector3(0, 0.2, 3.0))
-	_prop = Node3D.new()
-	_prop.position = Vector3(0, 1.4, -3.6)
-	visual.add_child(_prop)
-	Parts.box(_prop, Vector3(2.4, 0.2, 0.08), Color(0.2, 0.2, 0.2), Vector3.ZERO)
+	Parts.collision_box(self, Vector3(1.2, 1.4, 8.3), Vector3(0, 1.48, 0.1))
+	Parts.collision_box(self, Vector3(11.0, 0.3, 1.6), Vector3(0, 2.3, -0.95))
+	Parts.collision_box(self, Vector3(3.5, 0.3, 1.1), Vector3(0, 1.5, 3.9))
+	_prop = PlaneModel.build(visual)
 
 
 func get_speed() -> float:
@@ -120,7 +107,7 @@ func _physics_process(delta: float) -> void:
 		rotate_y(-roll_in * 1.0 * clampf(_speed / 10.0, -1.0, 1.0) * delta)
 		rotation.z = move_toward(rotation.z, 0.0, 2.0 * delta)
 		if rotating:
-			rotation.x = minf(rotation.x + pitch_rate * pitch_in * delta, 0.35)
+			rotation.x = minf(rotation.x + pitch_rate * pitch_in * delta, 0.25)  # more drags the tail
 		else:
 			rotation.x = move_toward(rotation.x, 0.0, 1.5 * delta)
 		rotation.x = maxf(rotation.x, 0.0)

@@ -28,6 +28,8 @@ var _legs: Array[Node3D] = []    # hip joints
 var _knees: Array[Node3D] = []
 var _arms: Array[Node3D] = []    # shoulder joints
 var _elbows: Array[Node3D] = []
+var _head: Node3D
+var _cap: Array[Node3D] = []
 var _mats := {}  # one material per color
 
 
@@ -154,6 +156,7 @@ func _build_body() -> void:
 
 	# Head: nose, ears, short beard, sunglasses, snapback on backwards.
 	var head := _joint(_torso, Vector3(0, 0.68, 0))
+	_head = head
 	_part(head, _sphere(0.115, 0.26), skin, Vector3.ZERO, Vector3.ZERO, Vector3(1, 1, 1.05))
 	_part(head, _sphere(0.118, 0.236, true), beard, Vector3(0, -0.035, -0.004), Vector3(PI, 0, 0), Vector3(1, 0.62, 1.03))
 	# Hair: a shell nudged back so it covers the back and sides but not the face.
@@ -163,8 +166,8 @@ func _build_body() -> void:
 	for side in [-1.0, 1.0]:
 		_part(head, _sphere(0.025, 0.055), skin.darkened(0.05), Vector3(side * 0.112, 0, 0.005), Vector3.ZERO, Vector3(0.5, 1, 1))
 		_part(head, _capsule(0.006, 0.11), Color(0.04, 0.04, 0.05), Vector3(side * 0.106, 0.03, -0.05), Vector3(PI / 2, 0, 0))
-	_part(head, _sphere(0.121, 0.24, true), cap, Vector3(0, 0.03, 0.005), Vector3.ZERO, Vector3(1, 0.7, 1.04))
-	_part(head, _cylinder(0.09, 0.09, 0.012), cap, Vector3(0, 0.03, 0.12), Vector3(-0.15, 0, 0), Vector3(1.05, 1, 0.9))
+	_cap.append(_part(head, _sphere(0.121, 0.24, true), cap, Vector3(0, 0.03, 0.005), Vector3.ZERO, Vector3(1, 0.7, 1.04)))
+	_cap.append(_part(head, _cylinder(0.09, 0.09, 0.012), cap, Vector3(0, 0.03, 0.12), Vector3(-0.15, 0, 0), Vector3(1.05, 1, 0.9)))
 
 	for side in [-1.0, 1.0]:
 		var arm := _joint(_torso, Vector3(side * 0.235, 0.43, 0))
@@ -180,6 +183,32 @@ func _build_body() -> void:
 		_elbows.append(elbow)
 
 
+## The same guy, posed sitting on a bike with his hands out on the bars and a helmet on
+## instead of the cap. hips is where his hips go in the bike's space; the pose is a
+## sport-standard crouch: hands forward and down, knees tucked, feet back on the pegs.
+static func make_rider(hips: Vector3) -> Node3D:
+	var w := Walker.new()
+	var fig := w.visual
+	w.remove_child(fig)
+	fig.position = hips - Vector3(0, HIP_Y, 0)
+	for part in w._cap:
+		part.visible = false
+	# Full-face helmet: the shell, and a flatter, deeper ellipsoid that only breaks through
+	# the shell across the front, which reads as the visor.
+	w._part(w._head, _sphere(0.15, 0.3), Color(0.9, 0.42, 0.06), Vector3(0, 0.0, 0.01), Vector3.ZERO, Vector3(0.95, 1.1, 1.08))
+	w._part(w._head, _sphere(0.15, 0.3), Color(0.02, 0.03, 0.04), Vector3(0, 0.02, 0.01), Vector3.ZERO, Vector3(0.9, 0.5, 1.18))
+	w._torso.rotation.x = -0.55
+	w._head.rotation.x = 0.4
+	for side in 2:
+		var out := -1.0 if side == 0 else 1.0
+		w._legs[side].rotation = Vector3(1.25, 0, 0.2 * out)
+		w._knees[side].rotation.x = -2.1
+		w._arms[side].rotation = Vector3(1.3, 0, 0.22 * out)
+		w._elbows[side].rotation.x = 0.45
+	w.free()
+	return fig
+
+
 static func _joint(parent: Node3D, pos: Vector3) -> Node3D:
 	var j := Node3D.new()
 	j.position = pos
@@ -188,7 +217,7 @@ static func _joint(parent: Node3D, pos: Vector3) -> Node3D:
 
 
 func _part(parent: Node3D, mesh: PrimitiveMesh, color: Color, pos: Vector3,
-		rot := Vector3.ZERO, scale := Vector3.ONE) -> void:
+		rot := Vector3.ZERO, scale := Vector3.ONE) -> MeshInstance3D:
 	mesh.material = _mat(color)
 	var inst := MeshInstance3D.new()
 	inst.mesh = mesh
@@ -196,6 +225,7 @@ func _part(parent: Node3D, mesh: PrimitiveMesh, color: Color, pos: Vector3,
 	inst.rotation = rot
 	inst.scale = scale
 	parent.add_child(inst)
+	return inst
 
 
 func _mat(color: Color) -> StandardMaterial3D:

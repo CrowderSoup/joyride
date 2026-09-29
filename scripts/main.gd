@@ -138,8 +138,8 @@ func _unhandled_input(event: InputEvent) -> void:
 static func _make_vehicle(vehicle_name: String) -> Node3D:
 	match vehicle_name:
 		"frontier": return Frontier.make()
-		"sedan": return GroundVehicle.make_sedan()
-		"motorcycle": return GroundVehicle.make_motorcycle()
+		"sedan": return Sedan.make()
+		"motorcycle": return Motorcycle.make()
 		_: return Airplane.new()
 
 

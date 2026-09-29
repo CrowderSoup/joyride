@@ -82,9 +82,12 @@ shaders/building.gdshader       procedural facades (windows, curtain wall, brick
 scripts/world/street_index.gd   "what street am I on" spatial lookup
 scripts/world/mesh_tiles.gd     splits big static meshes into cullable 500 m tiles
 scripts/vehicles/ground_vehicle.gd  arcade car model, spinning/steering wheels, body pitch/roll
-scripts/vehicles/model_builder.gd   profile-extrusion toolkit for procedural low-poly vehicles
+scripts/vehicles/model_builder.gd   extrude/loft/lathe/tube toolkit for procedural low-poly vehicles
 scripts/vehicles/frontier.gd    2008 Nissan Frontier NISMO crew cab
+scripts/vehicles/sedan.gd       generic modern midsize sedan
+scripts/vehicles/motorcycle.gd  middleweight naked bike; fork and bars steer on a raked head
 scripts/vehicles/airplane.gd    arcade flight model
+scripts/vehicles/plane_model.gd Cessna 172-style high-wing plane
 ```
 
 ## Known simplifications
@@ -92,7 +95,7 @@ scripts/vehicles/airplane.gd    arcade flight model
 - The city is SLC-like, not SLC: compressed grid, made-up buildings, one-runway airport.
 - The camera doesn't avoid walls yet, so it can clip through them when you walk along one.
 - Everything is flat. No elevation, I-15 is at street level, no bridges.
-- The Frontier is procedural low-poly; the sedan and motorcycle are still placeholder boxes.
+- Vehicles are procedural low-poly with no interiors; the windows are opaque.
 - No traffic, pedestrians, sound, or day/night yet.
 - Performance budget (M1 Pro, Retina): the scene is GPU-bound at ~80 fps uncapped with
   defaults. SSAO (F3) costs ~6 ms even at its cheapest; SSIL cost more and is off. Depth
@@ -103,7 +106,7 @@ scripts/vehicles/airplane.gd    arcade flight model
 ## Ideas for later
 
 - Name it
-- Real vehicle models, engine sounds, a radio
+- Engine sounds, a radio
 - Terrain/elevation (the Avenues and Capitol Hill are steep — perfect for sending it)
 - Bigger map: Sugar House, the U, the Avenues, Great Salt Lake
 - Helicopter, boat, lawnmower
