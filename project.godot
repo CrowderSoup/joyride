@@ -1,0 +1,28 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="Joyride"
+config/description="Just drive shit around Salt Lake City."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+
+[physics]
+
+common/physics_interpolation=true
+
+[rendering]
+
+; SMAA instead of MSAA: cheaper here, and the art is flat-shaded anyway.
+anti_aliasing/quality/screen_space_aa=2
+; Cheapest SSAO/SSIL modes; they're off by default (F3 toggles AO) - too slow on the M1 at Retina res.
+environment/ssao/quality=0
+environment/ssao/half_size=true
+environment/ssil/quality=0
+environment/ssil/half_size=true
