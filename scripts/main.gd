@@ -70,6 +70,12 @@ func _process(delta: float) -> void:
 	hud.set_prompt(_prompt_text())
 
 
+func _notification(what: int) -> void:
+	# While you're driving, the walker is out of the tree and nothing else will free it.
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(walker) and not walker.is_inside_tree():
+		walker.free()
+
+
 func _controlled() -> Node3D:
 	return driving if driving else walker
 
