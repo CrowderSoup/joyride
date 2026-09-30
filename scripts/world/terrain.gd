@@ -64,8 +64,9 @@ static func _build_near(detail: FastNoiseLite) -> StaticBody3D:
 			var p01 := Vector3(x0, g.at(ix, iz + 1), z0 + g.step)
 			var p11 := Vector3(x0 + g.step, g.at(ix + 1, iz + 1), z0 + g.step)
 			var buf := tiles.at(p00)
-			_add_face(buf, p00, p10, p11, detail, true)
-			_add_face(buf, p00, p11, p01, detail, true)
+			# HeightMapShape3D splits each cell across p10-p01.
+			_add_face(buf, p00, p10, p01, detail, true)
+			_add_face(buf, p10, p11, p01, detail, true)
 	var body := tiles.build("Ground", _material(), false, false)
 	for child in body.get_children():
 		child.position.y = -SINK

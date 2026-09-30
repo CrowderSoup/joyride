@@ -225,8 +225,6 @@ func _geyser(pos: Vector3) -> void:
 ## Put things back once they've been gone a while and nobody's around to see it.
 func _respawn() -> void:
 	var watchers: Array[Vector3] = []
-	for v in vehicles:
-		watchers.append(v.global_position)
 	if coins.player and coins.player.is_inside_tree():
 		watchers.append(coins.player.global_position)
 	for k in range(_broken.size() - 1, -1, -1):
@@ -235,6 +233,20 @@ func _respawn() -> void:
 			continue
 		var p := _xform[i].origin
 		if watchers.any(func(w: Vector3) -> bool: return w.distance_to(p) < RESPAWN_DISTANCE):
+			continue
+		# Unoccupied vehicles aren't observers. Only keep props out of their footprint.
+		var occupied := false
+		var size: Vector3 = SmashProps.KINDS[_kind[i]].size
+		var reach := maxf(size.x, size.z) * 0.5 + 0.5
+		for v in vehicles:
+			if not v.is_inside_tree():
+				continue
+			var local := v.global_transform.affine_inverse() * p
+			if absf(local.x) < v.footprint.x + reach and absf(local.z) < v.footprint.y + reach \
+					and local.y > -1.0 and local.y < 3.0:
+				occupied = true
+				break
+		if occupied:
 			continue
 		var center := Vector3((floori(p.x / CHUNK) + 0.5) * CHUNK, 0, (floori(p.z / CHUNK) + 0.5) * CHUNK)
 		_batch[i].set_instance_transform(_slot[i], _xform[i].translated(-center))

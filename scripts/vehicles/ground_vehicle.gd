@@ -15,7 +15,7 @@ var steer_rate := 2.0        # rad/s at full lock
 var steer_angle := 0.55      # how far the front wheels (or bars) visibly turn at full lock
 var grip := 10.0             # how fast sideways slide gets killed
 var handbrake_grip := 1.2    # low grip = drift
-var lean_amount := 0.04      # visual roll into turns
+var lean_amount := 0.04      # positive = outward body roll; negative = inward banking (bikes)
 var pitch_amount := 0.0      # visual squat/dive per m/s^2 of acceleration
 
 var body: Node3D             # the part that leans/pitches; null = the whole visual
@@ -62,6 +62,11 @@ func add_wheel(mesh: Mesh, pos: Vector3, radius: float, steers: bool, parent: No
 
 func get_speed() -> float:
 	return _speed
+
+
+func first_person_transform() -> Transform3D:
+	var mount := body if body else visual
+	return mount.get_global_transform_interpolated() * Transform3D(Basis.IDENTITY, first_person_offset)
 
 
 func set_driving(on: bool) -> void:

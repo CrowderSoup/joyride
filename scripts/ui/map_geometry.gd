@@ -3,13 +3,13 @@ extends RefCounted
 ## Flattens the map JSON into one 2D mesh (buildings + roads) and a set of street labels,
 ## shared by the minimap and the full map. Map space is world X/Z in meters, north up.
 
-const BUILDING_COLOR := Color(0.3, 0.3, 0.34)
-const MINOR_ROAD_COLOR := Color(0.55, 0.55, 0.58)
-const MAJOR_ROAD_COLOR := Color(0.95, 0.8, 0.4)
-const MOTORWAY_COLOR := Color(0.95, 0.55, 0.3)
-const AEROWAY_COLOR := Color(0.42, 0.42, 0.46)
+const BUILDING_COLOR := Color(0.18, 0.23, 0.26)
+const MINOR_ROAD_COLOR := Color(0.68, 0.74, 0.73)
+const MAJOR_ROAD_COLOR := Color(0.94, 0.85, 0.57)
+const MOTORWAY_COLOR := Color(0.96, 0.64, 0.35)
+const AEROWAY_COLOR := Color(0.32, 0.4, 0.43)
 const AREA_COLORS := {
-	"aeroway": AEROWAY_COLOR, "green": Color(0.2, 0.32, 0.18), "water": Color(0.2, 0.36, 0.5),
+	"aeroway": AEROWAY_COLOR, "green": Color(0.12, 0.24, 0.19), "water": Color(0.12, 0.29, 0.38),
 }
 const MAJOR_KINDS := ["trunk", "primary", "secondary"]
 const LABEL_KINDS := ["motorway", "trunk", "primary", "secondary", "tertiary"]

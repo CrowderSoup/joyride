@@ -24,9 +24,10 @@ static func make() -> GroundVehicle:
 	v.steer_angle = 0.3
 	v.grip = 12.0
 	v.handbrake_grip = 2.0
-	v.lean_amount = 0.55
+	v.lean_amount = -0.55  # bank the bike and rider inward, opposite a car's body roll
 	v.camera_distance = 6.5
 	v.camera_height = 2.5
+	v.first_person_offset = Vector3(0, 1.5, -0.05)
 	v.enter_radius = 2.2
 	v.exit_offset = Vector3(-1.0, 0, 0)
 	v.footprint = Vector2(0.35, 1.05)

@@ -23,6 +23,8 @@ static func setup() -> void:
 	# Camera: right stick looks around anywhere; Q/E orbit only on foot (they're the rudder).
 	_action("look_left", [], [_joy_axis(JOY_AXIS_RIGHT_X, -1.0)])
 	_action("look_right", [], [_joy_axis(JOY_AXIS_RIGHT_X, 1.0)])
+	_action("look_up", [], [_joy_axis(JOY_AXIS_RIGHT_Y, -1.0)])
+	_action("look_down", [], [_joy_axis(JOY_AXIS_RIGHT_Y, 1.0)])
 	_action("orbit_left", [KEY_Q], [])
 	_action("orbit_right", [KEY_E], [])
 	_action("interact", [KEY_F], [_joy_button(JOY_BUTTON_Y)])
@@ -30,6 +32,7 @@ static func setup() -> void:
 	_action("toggle_help", [KEY_H], [])
 	_action("toggle_ao", [KEY_F3], [])
 	_action("toggle_map", [KEY_M], [_joy_button(JOY_BUTTON_START)])
+	_action("toggle_camera", [KEY_V], [_joy_button(JOY_BUTTON_RIGHT_STICK)])
 
 
 static func _action(action: StringName, keys: Array, joy_events: Array) -> void:

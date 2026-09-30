@@ -22,6 +22,7 @@ func _init() -> void:
 	display_name = "Prop Plane"
 	camera_distance = 16.0
 	camera_height = 4.0
+	first_person_offset = Vector3(-0.32, 1.9, -0.6)
 	enter_radius = 5.0
 	exit_offset = Vector3(-1.5, 0, 1.3)  # behind the left wing
 	footprint = Vector2(0.8, 4.2)  # the fuselage; the wings pass over street furniture

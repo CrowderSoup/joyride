@@ -6,6 +6,7 @@ extends CharacterBody3D
 var display_name := "Vehicle"
 var camera_distance := 9.0
 var camera_height := 3.5
+var first_person_offset := Vector3(-0.35, 1.2, -0.15)  # driver's eye, in model space
 var enter_radius := 3.0                  # how close you have to walk to get in
 var exit_offset := Vector3(-1.6, 0, 0)   # where you step out (driver's side); mirrored if blocked
 var footprint := Vector2(0.9, 2.4)       # half width, half length: what plows into things
@@ -37,6 +38,11 @@ func play_door() -> void:
 
 func get_speed() -> float:
 	return 0.0
+
+
+## Follow the interpolated model, including its slope tilt (and the plane's bank).
+func first_person_transform() -> Transform3D:
+	return visual.get_global_transform_interpolated() * Transform3D(Basis.IDENTITY, first_person_offset)
 
 
 ## Extra HUD readout (the plane's altitude and throttle).

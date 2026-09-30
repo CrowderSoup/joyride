@@ -5,7 +5,7 @@ extends RefCounted
 ## are real meters relative to Temple Square. Everything that touches the ground asks here.
 ##
 ## Two grids: a fine one under the city (near) and a coarse one out to the mountains (far).
-## Both are drawn and collided as triangles split along the same diagonal, and height()
+## Each grid is drawn and collided with matching triangle diagonals, and height()
 ## interpolates the same way, so things placed at height() sit exactly on the collision
 ## surface. Near's edges lie on far's grid lines and its outer rim fades into far's surface,
 ## so the two meshes meet without a seam.
@@ -17,7 +17,7 @@ static var _near: Grid
 static var _far: Grid
 
 
-## A regular grid of heights. Cell (ix, iz) splits along its p00-p11 diagonal.
+## A regular grid of heights. Near uses the heightmap's p10-p01 diagonal; far uses p00-p11.
 class Grid:
 	var x0: float
 	var z0: float
@@ -25,6 +25,7 @@ class Grid:
 	var nx: int
 	var nz: int
 	var h: PackedFloat32Array
+	var heightmap_diagonal := false
 
 	static func from_file(path: String) -> Grid:
 		var data := FileAccess.get_file_as_bytes(path).to_float32_array()
@@ -55,15 +56,21 @@ class Grid:
 
 	## Piecewise-linear over the triangles, clamped to the grid.
 	func sample(x: float, z: float) -> float:
-		var fx := clampf((x - x0) / step, 0.0, nx - 1.001)
-		var fz := clampf((z - z0) / step, 0.0, nz - 1.001)
-		var ix := int(fx)
-		var iz := int(fz)
+		var fx := clampf((x - x0) / step, 0.0, nx - 1.0)
+		var fz := clampf((z - z0) / step, 0.0, nz - 1.0)
+		var ix := mini(int(fx), nx - 2)
+		var iz := mini(int(fz), nz - 2)
 		fx -= ix
 		fz -= iz
 		var i := iz * nx + ix
 		var h00 := h[i]
 		var h11 := h[i + nx + 1]
+		if heightmap_diagonal:
+			var h10 := h[i + 1]
+			var h01 := h[i + nx]
+			if fx + fz <= 1.0:
+				return h00 + fx * (h10 - h00) + fz * (h01 - h00)
+			return h11 + (1.0 - fx) * (h01 - h11) + (1.0 - fz) * (h10 - h11)
 		if fx >= fz:
 			var h10 := h[i + 1]
 			return h00 + fx * (h10 - h00) + fz * (h11 - h10)
@@ -74,6 +81,7 @@ class Grid:
 static func load_data() -> void:
 	_far = Grid.from_file("res://data/elevation_far.f32")
 	_near = Grid.from_file("res://data/elevation_near.f32")
+	_near.heightmap_diagonal = true
 	# Fade near's rim into the far surface so the edges match exactly.
 	var b := _near.bounds()
 	for iz in _near.nz:

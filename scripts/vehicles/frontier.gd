@@ -23,6 +23,7 @@ static func make() -> GroundVehicle:
 	v.pitch_amount = 0.004
 	v.camera_distance = 10.5
 	v.camera_height = 3.8
+	v.first_person_offset = Vector3(-0.38, 1.58, -0.25)
 	v.enter_radius = 3.6
 	v.exit_offset = Vector3(-1.6, 0, -0.4)
 	v.footprint = Vector2(0.93, 2.65)

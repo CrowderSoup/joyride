@@ -25,6 +25,8 @@ Ground rules that have served us well so far:
 - [x] Four vehicles: Frontier NISMO, sedan, motorcycle, Cessna-style plane
 - [x] On foot: walk up to anything and get in; vehicles stay where you leave them
 - [x] HUD with street names, heading-up minimap, full map with waypoints
+- [x] Arcade speed / altitude gauges, throttle bar, compass with waypoint bearings,
+      flight horizon, and minimap with speed-based zoom and vehicle icons
 
 **Foundations**
 - [x] Real SLC elevation: State St climbs to the Capitol, the Avenues and east bench
@@ -32,6 +34,9 @@ Ground rules that have served us well so far:
 - [x] Driving on hills: gravity on slopes, coasting downhill, models sit flush
 - [x] Walking relative to the camera; mouse / right-stick look
 - [x] Camera pulls in at walls instead of clipping through
+- [x] First / third person vehicle views (V / right-stick click), with driver-eye mounts
+- [x] Terrain height, drawing and collision agree; entry checks height; parked vehicles
+      only block prop respawns within their footprint
 - [x] `Vehicle` base class; `main.gd` split into Controls / Lighting / World
 - [x] Synthesized sound: engines per vehicle, tire squeal, doors, footsteps
 
@@ -74,7 +79,7 @@ In order. Each one should be playable on its own.
 - A radio
 
 **Polish**
-- Tune the synthesized sounds by ear (never actually listened to)
+- Improve the synthesized sounds: listened to, playable, but underwhelming
 - Name the game
 
 ## Known issues

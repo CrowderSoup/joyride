@@ -5,6 +5,7 @@ extends Node3D
 const VEHICLES := ["plane", "frontier", "sedan", "motorcycle"]
 const ARRIVE_DISTANCE := 20.0
 const AIRBORNE := 30.0  # meters above the ground where street names and arrivals stop counting
+const ENTER_HEIGHT := 2.0  # allow slopes, but not vehicles on a different floor
 
 ## Every vehicle lives in the world the whole game and stays wherever you leave it.
 var vehicles: Array[Vehicle] = []
@@ -70,7 +71,7 @@ func _process(delta: float) -> void:
 		if waypoint_dist < ARRIVE_DISTANCE and altitude < AIRBORNE:
 			hud.clear_waypoint()
 			waypoint_dist = -1.0
-	hud.update(body.display_name, body.get_speed(), body.hud_extra(), _street_name, waypoint_dist, driving != null)
+	hud.update_player(body, _street_name, waypoint_dist, camera.first_person)
 	hud.set_prompt(_prompt_text())
 
 
@@ -168,6 +169,8 @@ func _nearest_vehicle() -> Vehicle:
 	var best_gap := 0.0
 	var here := Vector2(walker.global_position.x, walker.global_position.z)
 	for v in vehicles:
+		if absf(walker.global_position.y - v.global_position.y) > ENTER_HEIGHT:
+			continue
 		var gap: float = here.distance_to(Vector2(v.global_position.x, v.global_position.z)) - v.enter_radius
 		if gap < best_gap:
 			best_gap = gap

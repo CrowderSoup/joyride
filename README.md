@@ -27,6 +27,7 @@ To switch, stop, get out, and walk to another one. Vehicles stay wherever you le
 | Gas / brake+reverse | W / S | RT / LT |
 | Steer | A / D | Left stick |
 | Look around (swings back behind a vehicle) | Mouse | Right stick |
+| First / third person (inside a vehicle) | V | Right-stick click |
 | Orbit the camera (on foot) | Q / E | Right stick |
 | Run (on foot) | Shift | X |
 | Jump / handbrake (drift) | Space | A |
@@ -42,11 +43,38 @@ back up slowly), A/D to steer. Taxi out, line up on runway 35, hold W until the 
 "Hold S to lift off" (~63 mph), then hold S. In the air: W/S pitch (S pulls up), A/D roll,
 Q/E rudder, Shift/Ctrl throttle. Banking turns you; let go and the wings level.
 
+**Camera:** V switches between chase and driver-eye views while you're in any vehicle.
+Your choice carries over when switching vehicles; walking always uses third person.
+First person follows the vehicle's tilt and bank, with mouse / right-stick look. The
+current vehicle model is hidden from your camera so its opaque cabin doesn't block the
+view; cockpit interiors aren't modeled yet.
+
+**Instruments:** vehicles have an arcade speedometer with a needle and digital mph;
+reverse shows an R indicator. The plane adds an altitude dial (one revolution per
+1,000 feet), height above ground, and a throttle bar. Altitude uses the game's local
+Temple Square reference, not sea level. In first person, a transparent pitch/bank
+horizon appears in flight, with a lift-off cue on the ground once you're fast enough.
+The chase view keeps the center clear so you can see the plane.
+
+The compass ribbon shows your heading and waypoint bearing. The heading-up minimap
+has street labels, distinct parked-vehicle icons, a north arrow, waypoint distance and
+a scale bar; it gradually zooms out with speed, farther for the plane. Press H for the
+full controls overlay.
+
+## Checks
+
+```sh
+godot --headless --path . --script tests/run.gd
+```
+
+Checks terrain height against physics and the drawn mesh, entry proximity, prop respawn,
+camera switching / getting out for all four vehicles, and instrument / navigation data.
+
 ## Smashing stuff
 
 Hydrants, trash cans, newspaper boxes, mailboxes, benches, garbage bins and road-work
 cones line the streets (`CityGen._street_furniture`, about 2,400 of them). Drive through
-one and it goes flying, coins pop out and fly to you, and the counter under the minimap
+one and it goes flying, coins pop out and fly to you, and the counter at the bottom left
 goes up. Bigger things are worth more and cost you more speed; hydrants gush. Smashed
 props come back a couple of minutes later once you're well away. Coins are saved to
 `user://save.json` (the `Game` autoload).
@@ -111,7 +139,11 @@ scripts/world/city_gen.gd       generates the SLC-like city: grid, zones, buildi
 scripts/world/landmarks.gd      Temple Square, the Capitol, the arena, City & County Building
 scripts/world/airport.gd        airfield west of I-15: runway, taxiway, hangar, tower
 scripts/chase_camera.gd         follow/orbit cam, pulls in at walls, FOV widens with speed
-scripts/hud.gd                  speed / street name / help text, owns the maps
+scripts/hud.gd                  instrument and navigation layout, help, coins, maps
+scripts/ui/arcade_dashboard.gd  speed / altitude dials and throttle bar
+scripts/ui/hud_telemetry.gd     numerical instrument data from the controlled player
+scripts/ui/compass_ribbon.gd    heading ribbon, street name and waypoint bearing
+scripts/ui/flight_horizon.gd    flight pitch / bank reference and takeoff cue
 scripts/ui/map_geometry.gd      map data -> one shared 2D mesh + street labels
 scripts/ui/map_view.gd          heading-up minimap and full-screen waypoint map
 scripts/world/city_builder.gd   map data -> lots, roads, markings draped on the ground; buildings + collision
